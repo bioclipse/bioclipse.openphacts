@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
-      id="net.bioclipse.opentox_site"
+      id="net.bioclipse.openphacts_site"
       label="Bioclipse-OpenPhacts Update Site"
       version="2.5.0.qualifier"
       provider-name="The Bioclipse Team">
