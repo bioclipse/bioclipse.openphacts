@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: OpenPhacts User Interface
+Bundle-SymbolicName: net.bioclipse.openphacts.ui;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: net.bioclipse.openphacts.ui.Activator
+Bundle-Vendor: bioclipse.net
+Require-Bundle: org.eclipse.ui,
+ org.eclipse.core.runtime,
+ net.bioclipse.openphacts;bundle-version="1.0.0",
+ net.bioclipse.core;bundle-version="2.5.0"
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Bundle-ActivationPolicy: lazy
+Import-Package: org.apache.log4j
