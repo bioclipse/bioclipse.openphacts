@@ -55,6 +55,8 @@ public class OpenphactsManager implements IBioclipseManager {
 	    " ?concept skos:exactMatch ?match ." +
 		"}"
 	;
+	private static final String APPID = "5dea5f60";
+	private static final String APPKEY = "064e38c33ad32e925cd7a6e78b7c4996";
 
 	RDFManager rdf = new RDFManager();
 	
@@ -112,7 +114,7 @@ public class OpenphactsManager implements IBioclipseManager {
 		Mapping mapper;
 		try {
 			mapper = Mapping.getInstance(
-				getOPSLDAendpoint(), "5dea5f60", "064e38c33ad32e925cd7a6e78b7c4996"
+				getOPSLDAendpoint(), APPID, APPKEY
 			);
 			String rdfContent = mapper.mapUri(URI);
 			System.out.println("OPS LDA results: " + rdfContent);
