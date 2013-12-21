@@ -59,4 +59,9 @@ public interface IOpenphactsManager extends IBioclipseManager {
 	public List<String> getProteinsInfo(List<CWResult> collection)
 			throws BioclipseException;
 
+	@PublishedMethod(
+		methodSummary="Return other URIs the given URI maps to.",
+		params="String URI"
+	)
+	public List<String> mapURI(String URI) throws BioclipseException;
 }

@@ -16,13 +16,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-
 import net.bioclipse.cdk.business.ICDKManager;
 import net.bioclipse.cdk.domain.ICDKMolecule;
 import net.bioclipse.core.business.BioclipseException;
 import net.bioclipse.core.domain.IMolecule;
+import net.bioclipse.core.domain.StringMatrix;
 import net.bioclipse.managers.business.IBioclipseManager;
 import net.bioclipse.openphacts.model.CWResult;
+import net.bioclipse.rdf.business.IRDFStore;
+import net.bioclipse.rdf.business.RDFManager;
 
 import org.apache.log4j.Logger;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -32,6 +34,8 @@ import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import LDA_API.ConceptWikiDataAccessJava;
 import LDA_API.LDAInfo;
 import LDA_API.OPSLDAJava;
+
+import com.github.egonw.ops4j.Mapping;
 
 /**
  * A manager to query the Open PHACTS infrastructure.
@@ -45,6 +49,15 @@ public class OpenphactsManager implements IBioclipseManager {
 	public static final String OPENPHACTS_ENDPOINT_PREFERENCE ="openphacts.prefs.endpoint";
 	public static final String CONCEPTWIKI_ENDPOINT_PREFERENCE ="conceptwiki.prefs.endpoint";
 
+	private static final String EXACT_MATCHES =
+		"PREFIX skos: <http://www.w3.org/2004/02/skos/core#> " +
+		"SELECT ?match WHERE {" +
+	    " ?concept skos:exactMatch ?match ." +
+		"}"
+	;
+
+	RDFManager rdf = new RDFManager();
+	
 	public String getManagerName() {
 		return "openphacts";
 	}
@@ -93,7 +106,24 @@ public class OpenphactsManager implements IBioclipseManager {
 			throws BioclipseException {
 		return lookUpCW(query, "compound", monitor);
 	}
-	
+
+	public List<String> mapURI(String URI, IProgressMonitor monitor)
+			throws BioclipseException {
+		Mapping mapper;
+		try {
+			mapper = Mapping.getInstance(
+				getOPSLDAendpoint(), "5dea5f60", "064e38c33ad32e925cd7a6e78b7c4996"
+			);
+			String rdfContent = mapper.mapUri(URI);
+			System.out.println("OPS LDA results: " + rdfContent);
+			IRDFStore store = rdf.createInMemoryStore();
+			rdf.importFromString(store, rdfContent, "Turtle", monitor);
+			StringMatrix matches = rdf.sparql(store, EXACT_MATCHES);
+			return matches.getColumn("match");
+		} catch (Exception e) {
+			throw new BioclipseException(e.getMessage(), e);
+		}
+	}
 	
 	/**
 	 * Private method for CW access
