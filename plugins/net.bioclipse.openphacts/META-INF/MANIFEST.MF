@@ -16,13 +16,17 @@ Require-Bundle: org.eclipse.ui,
  net.sf.cglib,
  org.springframework.osgi.aopalliance.osgi,
  net.bioclipse.chemspider,
- net.bioclipse.cdk.business
+ net.bioclipse.cdk.business,
+ net.bioclipse.rdf
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Import-Package: org.apache.log4j
 Bundle-ActivationPolicy: lazy
-Bundle-ClassPath: lib/scala_lda_api.jar,
- .,
- extlib/commons-io-1.3.2.jar,
+Bundle-ClassPath: .,
+ lib/ops4j-0.0.1-SNAPSHOT.jar,
+ extlib/commons-io-2.4.jar,
+ extlib/httpclient-4.2.5.jar,
+ extlib/httpcore-4.2.4.jar,
+ lib/scala_lda_api.jar,
  extlib/jackson-all-1.9.11.jar,
  extlib/jerkson_2.9.1-0.5.0.jar,
  extlib/play_2.9.1-2.0.4.jar,
@@ -31,4 +35,5 @@ Bundle-ClassPath: lib/scala_lda_api.jar,
  extlib/scala-library-src.jar,
  extlib/scala-library.jar,
  extlib/scala-swing-src.jar,
- extlib/scala-swing.jar
+ extlib/scala-swing.jar,
+ extlib/commons-logging-1.1.3.jar
