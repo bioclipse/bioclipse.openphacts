@@ -31,10 +31,11 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.preferences.ConfigurationScope;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 
-import LDA_API.ConceptWikiDataAccessJava;
 import LDA_API.LDAInfo;
 import LDA_API.OPSLDAJava;
 
+import com.github.egonw.ops4j.ConceptType;
+import com.github.egonw.ops4j.Concepts;
 import com.github.egonw.ops4j.Mapping;
 
 /**
@@ -53,9 +54,13 @@ public class OpenphactsManager implements IBioclipseManager {
 		"PREFIX skos: <http://www.w3.org/2004/02/skos/core#> " +
 		"SELECT ?match WHERE {" +
 	    " ?concept skos:exactMatch ?match ." +
-		"}"
-	;
-	private static final String APPID = "5dea5f60";
+		"}";
+	private static final String CONCEPT_SEARCH_RESULTS =
+		"SELECT ?uuid ?match WHERE {" +
+		" ?uuid <http://www.openphacts.org/api#match> ?match ." +
+		"}";
+	
+    private static final String APPID = "5dea5f60";
 	private static final String APPKEY = "064e38c33ad32e925cd7a6e78b7c4996";
 
 	RDFManager rdf = new RDFManager();
@@ -141,26 +146,37 @@ public class OpenphactsManager implements IBioclipseManager {
 		monitor.subTask("Searching ConceptWiki for:" + name);
 
 		//Query CW based on type
-		List<Map<String, String>> collection=null;
-		if ("compound".equals(type))
-			collection = ConceptWikiDataAccessJava.CW_Search_Compound(
-						name, getConceptWikiEndpoint());
-
-		else if ("protein".equals(type))
-			collection = ConceptWikiDataAccessJava.CW_Search_Protein(
-					name, getConceptWikiEndpoint());
-
-		else throw new BioclipseException("Type must be either protein or compound");
+		IRDFStore store = rdf.createInMemoryStore();
+		try {
+			Concepts concepts = Concepts.getInstance(getOPSLDAendpoint(), APPID, APPKEY);
+			ConceptType cwtype = null;
+			if ("compound".equals(type)) {
+				cwtype = ConceptType.CHEMICAL_VIEWED_STRUCTURALLY;
+			} else if ("protein".equals(type)) {
+				cwtype = ConceptType.AMINO_ACID_PEPTIDE_OR_PROTEIN;
+			} else {
+				throw new BioclipseException("Type must be either protein or compound");
+			}
+			String rdfContent = concepts.freetextByTag(name, cwtype);
+			System.out.println("OPS LDA results: " + rdfContent);
+			rdf.importFromString(store, rdfContent, "Turtle", monitor);
+		} catch (Exception e) {
+			throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+		}
 
 		//Parse the results
 		List<CWResult> res = new ArrayList<CWResult>();
-		for (Map<String, String> result : collection){
-
-			String cwid = result.get("uuid");
-			String matchname = result.get("matchstring");
-			
-			CWResult cmodel = new CWResult(matchname, cwid);
-			res.add(cmodel);
+		try {
+			StringMatrix matches = rdf.sparql(store, CONCEPT_SEARCH_RESULTS);
+			for (int i=1; i<=matches.getRowCount(); i++) {
+				CWResult result = new CWResult(
+					matches.get(i, "uuid").substring(14),
+					matches.get(i, "match")
+				);
+				res.add(result);
+			}
+		} catch (Exception e) {
+			throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
 		}
 
 		return res;
