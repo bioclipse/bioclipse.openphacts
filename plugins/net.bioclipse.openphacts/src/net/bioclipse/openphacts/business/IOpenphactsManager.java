@@ -50,12 +50,16 @@ public interface IOpenphactsManager extends IBioclipseManager {
 
 	@PublishedMethod(
 			methodSummary = "Get info for chemical structures from Open PHACTS" +
-					", including pharmacological data")
+					", including pharmacological data",
+			params = "List<CWResult> collection"
+	)
 	public List<IMolecule> getCompoundsInfo(List<CWResult> collection) 
 			throws BioclipseException;
 	
 	@PublishedMethod(
-			methodSummary = "Get info for proteins from Open PHACTS")
+			methodSummary = "Get info for proteins from Open PHACTS",
+			params = "List<CWResult> collection"
+	)
 	public List<String> getProteinsInfo(List<CWResult> collection)
 			throws BioclipseException;
 
