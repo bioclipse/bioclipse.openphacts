@@ -37,6 +37,7 @@ import LDA_API.OPSLDAJava;
 import com.github.egonw.ops4j.ConceptType;
 import com.github.egonw.ops4j.Concepts;
 import com.github.egonw.ops4j.Mapping;
+import com.github.egonw.ops4j.Targets;
 
 /**
  * A manager to query the Open PHACTS infrastructure.
@@ -58,6 +59,14 @@ public class OpenphactsManager implements IBioclipseManager {
 	private static final String CONCEPT_SEARCH_RESULTS =
 		"SELECT ?uuid ?match WHERE {" +
 		" ?uuid <http://www.openphacts.org/api#match> ?match ." +
+		"}";
+	private static final String PROTEIN_INFO =
+		"SELECT ?uuid ?name WHERE {" +
+		" ?page <http://xmlns.com/foaf/0.1/primaryTopic> ?uuid ." +
+		" ?uuid <http://www.w3.org/2004/02/skos/core#prefLabel> ?name ;" +
+		"       <http://www.w3.org/2004/02/skos/core#exactMatch> ?dbUri ." +
+		" ?dbUri <http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/theoreticalPi> ?pi ;" +
+		"        <http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/numberOfResidues> ?residues ." +
 		"}";
 	
     private static final String APPID = "5dea5f60";
@@ -188,7 +197,8 @@ public class OpenphactsManager implements IBioclipseManager {
 	 * @param monitor
 	 * @return
 	 */
-	public List<String> getProteinInfo(List<CWResult> collection, IProgressMonitor monitor){
+	public List<String> getProteinInfo(List<CWResult> collection, IProgressMonitor monitor)
+	throws BioclipseException {
 
 		monitor.beginTask("Retrieving information about protein from Open PHACTS", collection.size());
 		List<String> res = new ArrayList<String>();
@@ -203,14 +213,36 @@ public class OpenphactsManager implements IBioclipseManager {
 				return null;
 
 			String cwikiURI = "http://www.conceptwiki.org/concept/" +protein.getCwid();
-
-			List<LDAInfo> targetInfo = OPSLDAJava.GetTargetInfo(cwikiURI, getOPSLDAendpoint());
-			String tinfo = protein.getName() + "\n";
-			for (LDAInfo info : targetInfo){
-				tinfo=tinfo + "\n" + info.field + "=" + info.value;
-			}
-			res.add(tinfo);
 			
+			//Query CW based on type
+			IRDFStore store = rdf.createInMemoryStore();
+			try {
+				Targets targets = Targets.getInstance(getOPSLDAendpoint(), APPID, APPKEY);
+				String rdfContent = targets.info(cwikiURI);
+				System.out.println("OPS LDA results: " + rdfContent);
+				rdf.importFromString(store, rdfContent, "Turtle", monitor);
+			} catch (Exception e) {
+				throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+			}
+
+			// process the results
+			try {
+				StringMatrix matches = rdf.sparql(store, PROTEIN_INFO);
+				String tinfo = "";
+				if (matches.getRowCount() > 0) {
+					String name = matches.get(1, "name");
+					tinfo += name + "\n";
+				}
+				for (int prot=1; prot<=matches.getRowCount(); prot++) {
+					String residues = matches.get(prot, "residues");
+					tinfo += "\nresidues=" + residues;
+					String pi = matches.get(prot, "pi");
+					tinfo += "\npi=" + pi;
+					res.add(tinfo);
+				}
+			} catch (Exception e) {
+				throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+			}			
 		}
 		
 		return res;
