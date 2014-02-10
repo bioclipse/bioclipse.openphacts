@@ -169,10 +169,9 @@ public class OpenphactsManager implements IBioclipseManager {
 		try {
 			StringMatrix matches = rdf.sparql(store, CONCEPT_SEARCH_RESULTS);
 			for (int i=1; i<=matches.getRowCount(); i++) {
-				CWResult result = new CWResult(
-					matches.get(i, "uuid").substring(14),
-					matches.get(i, "match")
-				);
+				String uuid = matches.get(i, "uuid");
+				uuid = uuid.substring(uuid.lastIndexOf('/')+1);
+				CWResult result = new CWResult(uuid, matches.get(i, "match"));
 				res.add(result);
 			}
 		} catch (Exception e) {
