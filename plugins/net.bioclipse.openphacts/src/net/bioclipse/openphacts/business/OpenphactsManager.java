@@ -61,12 +61,13 @@ public class OpenphactsManager implements IBioclipseManager {
 		" ?uuid <http://www.openphacts.org/api#match> ?match ." +
 		"}";
 	private static final String PROTEIN_INFO =
-		"SELECT ?uuid ?name WHERE {" +
-		" ?page <http://xmlns.com/foaf/0.1/primaryTopic> ?uuid ." +
+		"SELECT ?uuid2 ?name ?residues ?pi WHERE {" +
 		" ?uuid <http://www.w3.org/2004/02/skos/core#prefLabel> ?name ;" +
 		"       <http://www.w3.org/2004/02/skos/core#exactMatch> ?dbUri ." +
-		" ?dbUri <http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/theoreticalPi> ?pi ;" +
-		"        <http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/numberOfResidues> ?residues ." +
+		" OPTIONAL {" + 
+		"  ?dbUri <http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/theoreticalPi> ?pi ;" +
+		"         <http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/numberOfResidues> ?residues ." +
+		" }" +
 		"}";
 	
     private static final String APPID = "5dea5f60";
@@ -197,12 +198,18 @@ public class OpenphactsManager implements IBioclipseManager {
 	 * @param monitor
 	 * @return
 	 */
-	public List<String> getProteinInfo(List<CWResult> collection, IProgressMonitor monitor)
+	public List<String> getProteinsInfo(List<CWResult> collection, IProgressMonitor monitor)
 	throws BioclipseException {
 
 		monitor.beginTask("Retrieving information about protein from Open PHACTS", collection.size());
 		List<String> res = new ArrayList<String>();
 		
+		Targets targets = null;
+		try {
+			targets = Targets.getInstance(getOPSLDAendpoint(), APPID, APPKEY);
+		} catch (Exception e) {
+			throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+		}
 		int i=0;
 		for (CWResult protein : collection){
 			i++;
@@ -217,16 +224,11 @@ public class OpenphactsManager implements IBioclipseManager {
 			//Query CW based on type
 			IRDFStore store = rdf.createInMemoryStore();
 			try {
-				Targets targets = Targets.getInstance(getOPSLDAendpoint(), APPID, APPKEY);
 				String rdfContent = targets.info(cwikiURI);
 				System.out.println("OPS LDA results: " + rdfContent);
 				rdf.importFromString(store, rdfContent, "Turtle", monitor);
-			} catch (Exception e) {
-				throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
-			}
 
-			// process the results
-			try {
+				// process the results
 				StringMatrix matches = rdf.sparql(store, PROTEIN_INFO);
 				String tinfo = "";
 				if (matches.getRowCount() > 0) {
@@ -241,7 +243,12 @@ public class OpenphactsManager implements IBioclipseManager {
 					res.add(tinfo);
 				}
 			} catch (Exception e) {
-				throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+				if (e.getMessage().contains("404: Not Found")) {
+					// just skip this entry: the URI provided did not return matching results
+					res.add("");
+				} else {
+					throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+				}
 			}			
 		}
 		
