@@ -79,6 +79,22 @@ public class OpenphactsManager implements IBioclipseManager {
 			" OPTIONAL { ?compound_uri <http://www.openphacts.org/api#molweight> ?molweight . }" +
 			" OPTIONAL { ?compound_uri <http://www.openphacts.org/api#molformula> ?molformula . }" +
 			"}";
+	private static final String COMPOUND_PHARMA_COUNT =
+			"SELECT ?uuid ?count WHERE {" +
+			" ?uuid <http://www.openphacts.org/api#compoundPharmacologyTotalResults> ?count ." +
+			"}";
+	
+	private static final String COMPOUND_PHARMA =
+			"SELECT * WHERE {" +
+			" ?item <http://rdf.ebi.ac.uk/terms/chembl#hasMolecule> ?chembl_compound_uri ; " +
+			"   <http://rdf.ebi.ac.uk/terms/chembl#hasAssay> ?assay_uri . " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#publishedType> ?published_type . } " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#publishedRelation> ?published_relation . } " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#publishedValue> ?published_value . } " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#publishedUnits> ?published_unit . } " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#pChembl> ?pChembl . } " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#activityComment> ?act_comment . } " +
+			"}";
 	
     private static final String APPID = "5dea5f60";
 	private static final String APPKEY = "064e38c33ad32e925cd7a6e78b7c4996";
@@ -337,23 +353,58 @@ public class OpenphactsManager implements IBioclipseManager {
 					cdkmol = cdk.fromSMILES(smiles);
 				}
 
-				//Look up pharmacology info
-				//======================
-				//			logger.debug("Looking up pharmacology for compound: " + compound);
-				//			monitor.subTask("Looking up compound info for compound (" + i + "/" + 
-				//					collection.size() + "): " + compound.getName());
-				//			monitor.worked(1);
-				//			if (monitor.isCanceled())
-				//				return null;
-				//			List<Map<String,String>> pharm2 = OPSLDAJava.GetPharmacologyByCompound(cwikiCompound,getOPSLDAendpoint());
-				//			for(Map<String,String> pharmainfo : pharm2)
-				//			{
-				//				for(Entry<String,String> entry: pharmainfo.entrySet()){
-				//					props.put(entry.getKey(), entry.getValue());
-				//					logger.debug("Added Pharmacology Field: "+ entry.getKey() + " Value: "+entry.getValue());
-				//				}
-				//			}
-				//			
+//				Look up pharmacology info
+//				======================
+				logger.debug("Looking up pharmacology for compound: " + compound);
+				monitor.subTask("Looking up compound info for compound (" + i + "/" + 
+						collection.size() + "): " + compound.getName());
+				monitor.worked(1);
+				if (monitor.isCanceled())
+					return null;
+				String countTurtle = compounds.pharmacologyCount(cwikiCompound);
+				System.out.println("Count turtle: " + countTurtle);
+				IRDFStore countStore = rdf.createInMemoryStore();
+				rdf.importFromString(countStore, countTurtle, "Turtle", monitor);
+				StringMatrix countMatches = rdf.sparql(countStore, COMPOUND_PHARMA_COUNT);
+				System.out.println("Count matches: " + countMatches);
+				if (countMatches.getRowCount() > 0) {
+					int count = Integer.valueOf(countMatches.get(1, "count"));
+
+					if (count > 0) {
+						if (count > 100) {
+							logger.warn("Retrieving only the first 100 activities. Total found is: " + count);
+							count = 100;
+						}
+						String pharmaTurtle = compounds.pharmacologyList(cwikiCompound, 1, count);
+						System.out.println("Pharma turtle: " + pharmaTurtle);
+						IRDFStore pharmaStore = rdf.createInMemoryStore();
+						rdf.importFromString(pharmaStore, pharmaTurtle, "Turtle", monitor);
+						StringMatrix pharmaInfo = rdf.sparql(pharmaStore, COMPOUND_PHARMA);
+						System.out.println("pharmaInfo: " + pharmaInfo);
+
+						//			List<Map<String,String>> pharm2 = OPSLDAJava.GetPharmacologyByCompound(cwikiCompound,getOPSLDAendpoint());
+						//			for(Map<String,String> pharmainfo : pharm2)
+						//			{
+						//				for(Entry<String,String> entry: pharmainfo.entrySet()){
+						//					props.put(entry.getKey(), entry.getValue());
+						//					logger.debug("Added Pharmacology Field: "+ entry.getKey() + " Value: "+entry.getValue());
+						for (int actCounter=1;actCounter<=pharmaInfo.getRowCount();actCounter++) {
+							String report = onlyIfNotNull("", pharmaInfo.get(actCounter, "published_type"), " ") +
+									onlyIfNotNull("", pharmaInfo.get(actCounter, "published_relation"), " ") +
+									onlyIfNotNull("", pharmaInfo.get(actCounter, "published_value"), " ") +
+									onlyIfNotNull("", pharmaInfo.get(actCounter, "published_unit"), " ") +
+									onlyIfNotNull("(pChembl=", pharmaInfo.get(actCounter, "pChembl"), ") ") +
+									onlyIfNotNull("Comment: ", pharmaInfo.get(actCounter, "act_comment"), "");
+							props.put("pharmacology"+actCounter, report);
+							System.out.println("Added compound pharma: " + report);
+						}
+					} else {
+						logger.debug("No pharma found for this compound");
+					}
+				} else {
+					logger.debug("No proper pharma count found in Turtle: " + countTurtle);
+				}
+
 				for (String key : props.keySet())
 					cdkmol.setProperty(key, props.get(key));
 
@@ -366,6 +417,11 @@ public class OpenphactsManager implements IBioclipseManager {
 
 		return mols;
 
+	}
+
+	private String onlyIfNotNull(String prefix, String string, String suffix) {
+		if (string != null) return prefix + string + suffix;
+		return "";
 	}
 
 }
