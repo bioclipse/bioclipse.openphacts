@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import net.bioclipse.cdk.business.ICDKManager;
 import net.bioclipse.cdk.domain.ICDKMolecule;
@@ -31,9 +30,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.preferences.ConfigurationScope;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 
-import LDA_API.LDAInfo;
-import LDA_API.OPSLDAJava;
-
+import com.github.egonw.ops4j.Compounds;
 import com.github.egonw.ops4j.ConceptType;
 import com.github.egonw.ops4j.Concepts;
 import com.github.egonw.ops4j.Mapping;
@@ -61,7 +58,7 @@ public class OpenphactsManager implements IBioclipseManager {
 		" ?uuid <http://www.openphacts.org/api#match> ?match ." +
 		"}";
 	private static final String PROTEIN_INFO =
-		"SELECT ?uuid2 ?name ?residues ?pi WHERE {" +
+		"SELECT ?uuid ?name ?residues ?pi WHERE {" +
 		" ?uuid <http://www.w3.org/2004/02/skos/core#prefLabel> ?name ;" +
 		"       <http://www.w3.org/2004/02/skos/core#exactMatch> ?dbUri ." +
 		" OPTIONAL {" + 
@@ -69,6 +66,19 @@ public class OpenphactsManager implements IBioclipseManager {
 		"         <http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/numberOfResidues> ?residues ." +
 		" }" +
 		"}";
+	private static final String COMPOUND_INFO =
+			"SELECT ?compound ?smiles ?inchi ?logp ?hba ?hbd ?ro5Violations ?psa ?rtb ?molweight ?molformula WHERE {" +
+			" ?compound_uri <http://www.openphacts.org/api#smiles> ?smiles ; " +
+			"               <http://www.openphacts.org/api#inchi> ?inchi . " +
+			" OPTIONAL { ?compound_uri <http://www.openphacts.org/api#logp> ?logp . }" +
+			" OPTIONAL { ?compound_uri <http://www.openphacts.org/api#hba> ?hba . }" +
+			" OPTIONAL { ?compound_uri <http://www.openphacts.org/api#hbd> ?hbd . }" +
+			" OPTIONAL { ?compound_uri <http://www.openphacts.org/api#ro5_violations> ?ro5Violations . }" +
+			" OPTIONAL { ?compound_uri <http://www.openphacts.org/api#psa> ?psa . }" +
+			" OPTIONAL { ?compound_uri <http://www.openphacts.org/api#rtb> ?rtb . }" +
+			" OPTIONAL { ?compound_uri <http://www.openphacts.org/api#molweight> ?molweight . }" +
+			" OPTIONAL { ?compound_uri <http://www.openphacts.org/api#molformula> ?molformula . }" +
+			"}";
 	
     private static final String APPID = "5dea5f60";
 	private static final String APPKEY = "064e38c33ad32e925cd7a6e78b7c4996";
@@ -270,6 +280,13 @@ public class OpenphactsManager implements IBioclipseManager {
 		ICDKManager cdk = net.bioclipse.cdk.business.Activator.getDefault().getJavaCDKManager();
 		java.util.List<IMolecule> mols = new ArrayList<IMolecule>();
 
+		Compounds compounds = null;
+		try {
+			compounds = Compounds.getInstance(getOPSLDAendpoint(), APPID, APPKEY);
+		} catch (Exception e) {
+			throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+		}
+
 		int i=0;
 		monitor.beginTask("Retrieving information about compounds from Open PHACTS", collection.size()*2);
 		for (CWResult compound : collection){
@@ -286,48 +303,67 @@ public class OpenphactsManager implements IBioclipseManager {
 			if (monitor.isCanceled())
 				return null;
 
-			List<LDAInfo> compoundInfo=OPSLDAJava.GetCompoundInfo(cwikiCompound,getOPSLDAendpoint());
-			
-			//First we
-			Map<String, String> props = new HashMap<String, String>();
-			ICDKMolecule cdkmol=null;
-			
-			for (LDAInfo info : compoundInfo){
+			try {
+				// List<LDAInfo> compoundInfo=OPSLDAJava.GetCompoundInfo();
+				String turtle = compounds.info(cwikiCompound,getOPSLDAendpoint());
+				System.out.println("Turtle: " + turtle);
 
-				props.put(info.field, info.value);
-				logger.debug("Added compound info:" + info.source +" - " + info.field + " - " + info.value);
-				
-				//Treat the chemspider field SMILES as special
-				if (info.source.equals("http://www.chemspider.com") && info.field.equals("smiles")){
-					String smiles = info.value;
+				//First we
+				Map<String, String> props = new HashMap<String, String>();
+				ICDKMolecule cdkmol=null;
+
+				IRDFStore store = rdf.createInMemoryStore();
+				rdf.importFromString(store, turtle, "Turtle", monitor);
+				// process the results
+				StringMatrix matches = rdf.sparql(store, COMPOUND_INFO);
+				System.out.println(matches);
+
+				//for (LDAInfo info : compoundInfo){
+				for (int compoundNo=1; compoundNo<=matches.getRowCount(); compoundNo++) {
+
+					//				props.put(info.field, info.value);
+					//				logger.debug("Added compound info:" + info.source +" - " + info.field + " - " + info.value);
+					String[] propNames = { // see SPARQL in COMPOUND_INFO
+						"logp", "hba", "hbd", "ro5Violations", "psa", "rtb", "molweight", "molformula"
+					};
+					for (String propName : propNames) {
+						String propVal = matches.get(compoundNo, propName);
+						props.put(propName, propVal);
+						System.out.println("Added compound info: " + propName + " - " + propVal);
+					}
+
+					//Treat the chemspider field SMILES as special
+					String smiles = matches.get(compoundNo, "smiles");
 					cdkmol = cdk.fromSMILES(smiles);
 				}
-			}
-			
-			//Look up pharmacology info
-			//======================
-			logger.debug("Looking up pharmacology for compound: " + compound);
-			monitor.subTask("Looking up compound info for compound (" + i + "/" + 
-					collection.size() + "): " + compound.getName());
-			monitor.worked(1);
-			if (monitor.isCanceled())
-				return null;
-			List<Map<String,String>> pharm2 = OPSLDAJava.GetPharmacologyByCompound(cwikiCompound,getOPSLDAendpoint());
-			for(Map<String,String> pharmainfo : pharm2)
-			{
-				for(Entry<String,String> entry: pharmainfo.entrySet()){
-					props.put(entry.getKey(), entry.getValue());
-					logger.debug("Added Pharmacology Field: "+ entry.getKey() + " Value: "+entry.getValue());
-				}
-			}
-			
-			for (String key : props.keySet())
-				cdkmol.setProperty(key, props.get(key));
 
-			mols.add(cdkmol);
+				//Look up pharmacology info
+				//======================
+				//			logger.debug("Looking up pharmacology for compound: " + compound);
+				//			monitor.subTask("Looking up compound info for compound (" + i + "/" + 
+				//					collection.size() + "): " + compound.getName());
+				//			monitor.worked(1);
+				//			if (monitor.isCanceled())
+				//				return null;
+				//			List<Map<String,String>> pharm2 = OPSLDAJava.GetPharmacologyByCompound(cwikiCompound,getOPSLDAendpoint());
+				//			for(Map<String,String> pharmainfo : pharm2)
+				//			{
+				//				for(Entry<String,String> entry: pharmainfo.entrySet()){
+				//					props.put(entry.getKey(), entry.getValue());
+				//					logger.debug("Added Pharmacology Field: "+ entry.getKey() + " Value: "+entry.getValue());
+				//				}
+				//			}
+				//			
+				for (String key : props.keySet())
+					cdkmol.setProperty(key, props.get(key));
+
+				mols.add(cdkmol);
+			} catch (Exception exception) {
+				exception.printStackTrace();
+			}
 
 		}
-			
+
 		return mols;
 
 	}
