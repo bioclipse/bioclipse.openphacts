@@ -94,6 +94,7 @@ public class OpenphactsManager implements IBioclipseManager {
 			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#publishedUnits> ?published_unit . } " +
 			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#pChembl> ?pChembl . } " +
 			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#activityComment> ?act_comment . } " +
+			" OPTIONAL { ?assay_uri <http://purl.org/dc/terms/description> ?assay_description. } " +
 			"}";
 	
     private static final String APPID = "5dea5f60";
@@ -395,7 +396,12 @@ public class OpenphactsManager implements IBioclipseManager {
 									onlyIfNotNull("", pharmaInfo.get(actCounter, "published_unit"), " ") +
 									onlyIfNotNull("(pChembl=", pharmaInfo.get(actCounter, "pChembl"), ") ") +
 									onlyIfNotNull("Comment: ", pharmaInfo.get(actCounter, "act_comment"), "");
-							props.put("pharmacology"+actCounter, report);
+							String propName = (
+								pharmaInfo.get(actCounter, "assay_description") != null ?
+									pharmaInfo.get(actCounter, "assay_description") :
+									"pharmacology"+actCounter
+							);
+							props.put(propName, report);
 							System.out.println("Added compound pharma: " + report);
 						}
 					} else {
