@@ -180,7 +180,7 @@ public class OpenphactsManager implements IBioclipseManager {
 			for (int i=1; i<=matches.getRowCount(); i++) {
 				String uuid = matches.get(i, "uuid");
 				uuid = uuid.substring(uuid.lastIndexOf('/')+1);
-				CWResult result = new CWResult(uuid, matches.get(i, "match"));
+				CWResult result = new CWResult(matches.get(i, "match"), uuid);
 				res.add(result);
 			}
 		} catch (Exception e) {
