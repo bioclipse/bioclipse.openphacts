@@ -68,4 +68,10 @@ public interface IOpenphactsManager extends IBioclipseManager {
 		params="String URI"
 	)
 	public List<String> mapURI(String URI) throws BioclipseException;
+
+	@PublishedMethod(
+		methodSummary="Return a URI for the given molecule, or an empty String if no match was found",
+		params="IMolecule molecule"
+	)
+	public String getURI(IMolecule molecule) throws BioclipseException;
 }

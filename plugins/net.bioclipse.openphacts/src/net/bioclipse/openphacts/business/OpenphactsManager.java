@@ -15,11 +15,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.bioclipse.cdk.business.ICDKManager;
+import net.bioclipse.cdk.business.CDKManager;
 import net.bioclipse.cdk.domain.ICDKMolecule;
 import net.bioclipse.core.business.BioclipseException;
 import net.bioclipse.core.domain.IMolecule;
 import net.bioclipse.core.domain.StringMatrix;
+import net.bioclipse.inchi.InChI;
+import net.bioclipse.inchi.business.InChIManager;
 import net.bioclipse.managers.business.IBioclipseManager;
 import net.bioclipse.openphacts.model.CWResult;
 import net.bioclipse.rdf.business.IRDFStore;
@@ -27,6 +29,7 @@ import net.bioclipse.rdf.business.RDFManager;
 
 import org.apache.log4j.Logger;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.preferences.ConfigurationScope;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 
@@ -34,6 +37,7 @@ import com.github.egonw.ops4j.Compounds;
 import com.github.egonw.ops4j.ConceptType;
 import com.github.egonw.ops4j.Concepts;
 import com.github.egonw.ops4j.Mapping;
+import com.github.egonw.ops4j.Structures;
 import com.github.egonw.ops4j.Targets;
 
 /**
@@ -83,7 +87,11 @@ public class OpenphactsManager implements IBioclipseManager {
 			"SELECT ?uuid ?count WHERE {" +
 			" ?uuid <http://www.openphacts.org/api#compoundPharmacologyTotalResults> ?count ." +
 			"}";
-	
+	private static final String COMPOUND_URI =
+			"SELECT ?compound WHERE {" +
+			" ?compound <http://semanticscience.org/resource/CHEMINF_000396> ?inchi ." +
+			"}";
+
 	private static final String COMPOUND_PHARMA =
 			"SELECT * WHERE {" +
 			" ?item <http://rdf.ebi.ac.uk/terms/chembl#hasMolecule> ?chembl_compound_uri ; " +
@@ -101,6 +109,8 @@ public class OpenphactsManager implements IBioclipseManager {
 	private static final String APPKEY = "064e38c33ad32e925cd7a6e78b7c4996";
 
 	RDFManager rdf = new RDFManager();
+	CDKManager cdk = new CDKManager();
+	InChIManager inchi = new InChIManager();
 	
 	public String getManagerName() {
 		return "openphacts";
@@ -282,6 +292,38 @@ public class OpenphactsManager implements IBioclipseManager {
 		return res;
 	}
 
+	public String getURI(IMolecule molecule, IProgressMonitor monitor) throws BioclipseException {
+		if (monitor == null) monitor = new NullProgressMonitor();
+
+		InChI inchiVal = null;
+		try {
+			inchiVal = inchi.generate(molecule, monitor);
+		} catch (Exception exception) {
+			throw new BioclipseException(
+				"Error while generating an InChI: " + exception.getMessage(), exception
+			);
+		}
+		if (inchiVal != null) {
+			// do something
+			Structures structures = null;
+			try {
+				structures = Structures.getInstance(getOPSLDAendpoint(), APPID, APPKEY);
+				String turtle = structures.inchi2uri(inchiVal.getValue());
+				
+				IRDFStore countStore = rdf.createInMemoryStore();
+				rdf.importFromString(countStore, turtle, "Turtle", monitor);
+				StringMatrix countMatches = rdf.sparql(countStore, COMPOUND_URI);
+				if (countMatches.getRowCount() > 0) {
+					String uri = countMatches.get(1, "compound");
+					return uri;
+				}
+			} catch (Exception e) {
+				throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+			}
+		}
+
+		return null;
+	}
 
 	/**
 	 * Look up compound information, such as pharmacological props for a set 
@@ -294,8 +336,7 @@ public class OpenphactsManager implements IBioclipseManager {
 	public List<IMolecule> getCompoundsInfo(List<CWResult> collection, IProgressMonitor monitor) 
 			throws BioclipseException{
 		
-		ICDKManager cdk = net.bioclipse.cdk.business.Activator.getDefault().getJavaCDKManager();
-		java.util.List<IMolecule> mols = new ArrayList<IMolecule>();
+		List<IMolecule> mols = new ArrayList<IMolecule>();
 
 		Compounds compounds = null;
 		try {
