@@ -15,17 +15,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.bioclipse.cdk.business.CDKManager;
+import net.bioclipse.cdk.business.ICDKManager;
 import net.bioclipse.cdk.domain.ICDKMolecule;
 import net.bioclipse.core.business.BioclipseException;
 import net.bioclipse.core.domain.IMolecule;
-import net.bioclipse.core.domain.StringMatrix;
+import net.bioclipse.core.domain.IStringMatrix;
 import net.bioclipse.inchi.InChI;
-import net.bioclipse.inchi.business.InChIManager;
+import net.bioclipse.inchi.business.IInChIManager;
 import net.bioclipse.managers.business.IBioclipseManager;
 import net.bioclipse.openphacts.model.CWResult;
+import net.bioclipse.rdf.business.IRDFManager;
 import net.bioclipse.rdf.business.IRDFStore;
-import net.bioclipse.rdf.business.RDFManager;
 
 import org.apache.log4j.Logger;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -107,10 +107,6 @@ public class OpenphactsManager implements IBioclipseManager {
 	
     private static final String APPID = "5dea5f60";
 	private static final String APPKEY = "064e38c33ad32e925cd7a6e78b7c4996";
-
-	RDFManager rdf = new RDFManager();
-	CDKManager cdk = new CDKManager();
-	InChIManager inchi = new InChIManager();
 	
 	public String getManagerName() {
 		return "openphacts";
@@ -163,6 +159,7 @@ public class OpenphactsManager implements IBioclipseManager {
 
 	public List<String> mapURI(String URI, IProgressMonitor monitor)
 			throws BioclipseException {
+		IRDFManager rdf = net.bioclipse.rdf.Activator.getDefault().getJavaManager();
 		Mapping mapper;
 		try {
 			mapper = Mapping.getInstance(
@@ -171,8 +168,8 @@ public class OpenphactsManager implements IBioclipseManager {
 			String rdfContent = mapper.mapUri(URI);
 			System.out.println("OPS LDA results: " + rdfContent);
 			IRDFStore store = rdf.createInMemoryStore();
-			rdf.importFromString(store, rdfContent, "Turtle", monitor);
-			StringMatrix matches = rdf.sparql(store, EXACT_MATCHES);
+			rdf.importFromString(store, rdfContent, "Turtle");
+			IStringMatrix matches = rdf.sparql(store, EXACT_MATCHES);
 			return matches.getColumn("match");
 		} catch (Exception e) {
 			throw new BioclipseException(e.getMessage(), e);
@@ -192,6 +189,8 @@ public class OpenphactsManager implements IBioclipseManager {
 		monitor.beginTask("Searching ConceptWiki for:" + name, IProgressMonitor.UNKNOWN);
 		monitor.subTask("Searching ConceptWiki for:" + name);
 
+		IRDFManager rdf = net.bioclipse.rdf.Activator.getDefault().getJavaManager();
+
 		//Query CW based on type
 		IRDFStore store = rdf.createInMemoryStore();
 		try {
@@ -206,7 +205,7 @@ public class OpenphactsManager implements IBioclipseManager {
 			}
 			String rdfContent = concepts.freetextByTag(name, cwtype);
 			System.out.println("OPS LDA results: " + rdfContent);
-			rdf.importFromString(store, rdfContent, "Turtle", monitor);
+			rdf.importFromString(store, rdfContent, "Turtle");
 		} catch (Exception e) {
 			throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
 		}
@@ -214,7 +213,7 @@ public class OpenphactsManager implements IBioclipseManager {
 		//Parse the results
 		List<CWResult> res = new ArrayList<CWResult>();
 		try {
-			StringMatrix matches = rdf.sparql(store, CONCEPT_SEARCH_RESULTS);
+			IStringMatrix matches = rdf.sparql(store, CONCEPT_SEARCH_RESULTS);
 			for (int i=1; i<=matches.getRowCount(); i++) {
 				String uuid = matches.get(i, "uuid");
 				uuid = uuid.substring(uuid.lastIndexOf('/')+1);
@@ -240,6 +239,8 @@ public class OpenphactsManager implements IBioclipseManager {
 
 		monitor.beginTask("Retrieving information about protein from Open PHACTS", collection.size());
 		List<String> res = new ArrayList<String>();
+
+		IRDFManager rdf = net.bioclipse.rdf.Activator.getDefault().getJavaManager();
 		
 		Targets targets = null;
 		try {
@@ -263,10 +264,10 @@ public class OpenphactsManager implements IBioclipseManager {
 			try {
 				String rdfContent = targets.info(cwikiURI);
 				System.out.println("OPS LDA results: " + rdfContent);
-				rdf.importFromString(store, rdfContent, "Turtle", monitor);
+				rdf.importFromString(store, rdfContent, "Turtle");
 
 				// process the results
-				StringMatrix matches = rdf.sparql(store, PROTEIN_INFO);
+				IStringMatrix matches = rdf.sparql(store, PROTEIN_INFO);
 				String tinfo = "";
 				if (matches.getRowCount() > 0) {
 					String name = matches.get(1, "name");
@@ -295,9 +296,12 @@ public class OpenphactsManager implements IBioclipseManager {
 	public String getURI(IMolecule molecule, IProgressMonitor monitor) throws BioclipseException {
 		if (monitor == null) monitor = new NullProgressMonitor();
 
+		IInChIManager inchi = net.bioclipse.inchi.business.Activator.getDefault().getJavaInChIManager();
+		IRDFManager rdf = net.bioclipse.rdf.Activator.getDefault().getJavaManager();
+
 		InChI inchiVal = null;
 		try {
-			inchiVal = inchi.generate(molecule, monitor);
+			inchiVal = inchi.generate(molecule);
 		} catch (Exception exception) {
 			throw new BioclipseException(
 				"Error while generating an InChI: " + exception.getMessage(), exception
@@ -311,8 +315,8 @@ public class OpenphactsManager implements IBioclipseManager {
 				String turtle = structures.inchi2uri(inchiVal.getValue());
 				
 				IRDFStore countStore = rdf.createInMemoryStore();
-				rdf.importFromString(countStore, turtle, "Turtle", monitor);
-				StringMatrix countMatches = rdf.sparql(countStore, COMPOUND_URI);
+				rdf.importFromString(countStore, turtle, "Turtle");
+				IStringMatrix countMatches = rdf.sparql(countStore, COMPOUND_URI);
 				if (countMatches.getRowCount() > 0) {
 					String uri = countMatches.get(1, "compound");
 					return uri;
@@ -335,7 +339,10 @@ public class OpenphactsManager implements IBioclipseManager {
 	 */
 	public List<IMolecule> getCompoundsInfo(List<CWResult> collection, IProgressMonitor monitor) 
 			throws BioclipseException{
-		
+
+		IRDFManager rdf = net.bioclipse.rdf.Activator.getDefault().getJavaManager();
+		ICDKManager cdk = net.bioclipse.cdk.business.Activator.getDefault().getJavaCDKManager();
+
 		List<IMolecule> mols = new ArrayList<IMolecule>();
 
 		Compounds compounds = null;
@@ -371,9 +378,9 @@ public class OpenphactsManager implements IBioclipseManager {
 				ICDKMolecule cdkmol=null;
 
 				IRDFStore store = rdf.createInMemoryStore();
-				rdf.importFromString(store, turtle, "Turtle", monitor);
+				rdf.importFromString(store, turtle, "Turtle");
 				// process the results
-				StringMatrix matches = rdf.sparql(store, COMPOUND_INFO);
+				IStringMatrix matches = rdf.sparql(store, COMPOUND_INFO);
 				System.out.println(matches);
 
 				//for (LDAInfo info : compoundInfo){
@@ -406,8 +413,8 @@ public class OpenphactsManager implements IBioclipseManager {
 				String countTurtle = compounds.pharmacologyCount(cwikiCompound);
 				System.out.println("Count turtle: " + countTurtle);
 				IRDFStore countStore = rdf.createInMemoryStore();
-				rdf.importFromString(countStore, countTurtle, "Turtle", monitor);
-				StringMatrix countMatches = rdf.sparql(countStore, COMPOUND_PHARMA_COUNT);
+				rdf.importFromString(countStore, countTurtle, "Turtle");
+				IStringMatrix countMatches = rdf.sparql(countStore, COMPOUND_PHARMA_COUNT);
 				System.out.println("Count matches: " + countMatches);
 				if (countMatches.getRowCount() > 0) {
 					int count = Integer.valueOf(countMatches.get(1, "count"));
@@ -420,8 +427,8 @@ public class OpenphactsManager implements IBioclipseManager {
 						String pharmaTurtle = compounds.pharmacologyList(cwikiCompound, 1, count);
 						System.out.println("Pharma turtle: " + pharmaTurtle);
 						IRDFStore pharmaStore = rdf.createInMemoryStore();
-						rdf.importFromString(pharmaStore, pharmaTurtle, "Turtle", monitor);
-						StringMatrix pharmaInfo = rdf.sparql(pharmaStore, COMPOUND_PHARMA);
+						rdf.importFromString(pharmaStore, pharmaTurtle, "Turtle");
+						IStringMatrix pharmaInfo = rdf.sparql(pharmaStore, COMPOUND_PHARMA);
 						System.out.println("pharmaInfo: " + pharmaInfo);
 
 						//			List<Map<String,String>> pharm2 = OPSLDAJava.GetPharmacologyByCompound(cwikiCompound,getOPSLDAendpoint());
