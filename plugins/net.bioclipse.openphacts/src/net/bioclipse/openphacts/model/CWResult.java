@@ -14,6 +14,9 @@ public class CWResult {
 	public String getCwid() {
 		return cwid;
 	}
+	public String getURI() {
+		return "http://www.conceptwiki.org/concept/" + cwid;
+	}
 	public void setCwid(String cwid) {
 		this.cwid = cwid;
 	}
