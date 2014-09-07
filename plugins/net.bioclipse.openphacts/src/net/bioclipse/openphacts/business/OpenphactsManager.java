@@ -22,6 +22,7 @@ import net.bioclipse.core.domain.IMolecule;
 import net.bioclipse.core.domain.IStringMatrix;
 import net.bioclipse.inchi.InChI;
 import net.bioclipse.inchi.business.IInChIManager;
+import net.bioclipse.jobs.IReturner;
 import net.bioclipse.managers.business.IBioclipseManager;
 import net.bioclipse.openphacts.model.CWResult;
 import net.bioclipse.rdf.business.IRDFManager;
@@ -90,6 +91,10 @@ public class OpenphactsManager implements IBioclipseManager {
 	private static final String COMPOUND_URI =
 			"SELECT ?compound WHERE {" +
 			" ?compound <http://semanticscience.org/resource/CHEMINF_000396> ?inchi ." +
+			"}";
+	private static final String COMPOUND_SIMILARITY =
+			"SELECT ?compound ?relevance WHERE {" +
+			" ?compound <http://www.openphacts.org/api/#relevance> ?relevance ." +
 			"}";
 
 	private static final String COMPOUND_PHARMA =
@@ -327,6 +332,42 @@ public class OpenphactsManager implements IBioclipseManager {
 		}
 
 		return null;
+	}
+
+	public void findSimilar(IMolecule molecule, IReturner<String> returner,
+            IProgressMonitor monitor)
+	throws BioclipseException {
+		findSimilar(molecule, null, returner, monitor);
+	}
+
+	public void findSimilar(IMolecule molecule, Double treshold, IReturner<String> returner,
+            IProgressMonitor monitor)
+	throws BioclipseException {
+		if (monitor == null) monitor = new NullProgressMonitor();
+
+		Double tresholdUsed = treshold == null ? Double.valueOf(0.8) : treshold;
+
+		IRDFManager rdf = net.bioclipse.rdf.Activator.getDefault().getJavaManager();
+		ICDKManager cdk = net.bioclipse.cdk.business.Activator.getDefault().getJavaCDKManager();
+		String smiles = cdk.calculateSMILES(molecule);
+
+		Structures structures = null;
+		try {
+			structures = Structures.getInstance(getOPSLDAendpoint(), APPID, APPKEY);
+			String turtle = structures.tanimotoSimilarity(smiles, tresholdUsed.floatValue());
+			
+			IRDFStore countStore = rdf.createInMemoryStore();
+			rdf.importFromString(countStore, turtle, "Turtle");
+			IStringMatrix countMatches = rdf.sparql(countStore, COMPOUND_SIMILARITY);
+			if (countMatches.getRowCount() > 0) {
+				for (int hit=1; hit<=countMatches.getRowCount(); hit++) {
+					String uri = countMatches.get(hit, "compound");
+					returner.partialReturn(uri);
+				}
+			}
+		} catch (Exception e) {
+			throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+		}
 	}
 
 	/**

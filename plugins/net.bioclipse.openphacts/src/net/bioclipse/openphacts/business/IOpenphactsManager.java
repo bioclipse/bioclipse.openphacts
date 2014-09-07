@@ -74,4 +74,20 @@ public interface IOpenphactsManager extends IBioclipseManager {
 		params="IMolecule molecule"
 	)
 	public String getURI(IMolecule molecule) throws BioclipseException;
+
+	@PublishedMethod(
+		methodSummary="Return URIs for similar molecules, or an empty List if no similar compounds were found. "
+				+ "It uses the Tanimoto distance, with a minimal similarity treshold of 0.8.",
+		params="IMolecule molecule"
+			)
+	public List<String> findSimilar(IMolecule molecule) throws BioclipseException;
+
+	@PublishedMethod(
+		methodSummary="Return URIs for similar molecules, or an empty List if no similar compounds were found. "
+				+ "It uses the Tanimoto distance, with a minimal similarity treshold of 0.8 if no "
+				+ " (null) or invalid value given.",
+		params="IMolecule molecule, Double treshold"
+	)
+	public List<String> findSimilar(IMolecule molecule, Double treshold) throws BioclipseException;
+
 }
