@@ -117,21 +117,10 @@ public class OpenphactsManager implements IBioclipseManager {
 		return "openphacts";
 	}
 
-	//Get and set OPS and CW endpoint preferences via manager methods
-	private String getConceptWikiEndpoint(){
-		 IEclipsePreferences preferences = ConfigurationScope.INSTANCE
-				  .getNode(OPENPHACTS_PREFERENCE_NODE);
-		 return preferences.get(CONCEPTWIKI_ENDPOINT_PREFERENCE,"default");
-	}
 	private String getOPSLDAendpoint(){
 		 IEclipsePreferences preferences = ConfigurationScope.INSTANCE
 				  .getNode(OPENPHACTS_PREFERENCE_NODE);
 		 return preferences.get(OPENPHACTS_ENDPOINT_PREFERENCE,"https://beta.openphacts.org/1.3/");
-	}
-	public void setConceptWikiEndpoint(String endpoint){
-		 IEclipsePreferences preferences = ConfigurationScope.INSTANCE
-				  .getNode(OPENPHACTS_PREFERENCE_NODE);
-		 preferences.put(CONCEPTWIKI_ENDPOINT_PREFERENCE,endpoint);
 	}
 	public void setOPSLDAendpoint(String endpoint){
 		 IEclipsePreferences preferences = ConfigurationScope.INSTANCE

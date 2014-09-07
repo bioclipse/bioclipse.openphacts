@@ -31,8 +31,6 @@ import net.bioclipse.openphacts.model.CWResult;
 )
 public interface IOpenphactsManager extends IBioclipseManager {
 
-	@PublishedMethod(methodSummary = "Set conceptwiki endpoint")
-	public void setConceptWikiEndpoint(String endpoint);
 	@PublishedMethod(methodSummary = "Set Open PHACTS LDA endpoint")
 	public void setOPSLDAendpoint(String endpoint);
 	
