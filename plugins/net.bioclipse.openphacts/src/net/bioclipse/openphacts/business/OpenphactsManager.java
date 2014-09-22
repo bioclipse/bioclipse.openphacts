@@ -10,6 +10,7 @@
  ******************************************************************************/
 package net.bioclipse.openphacts.business;
 
+import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -88,6 +89,10 @@ public class OpenphactsManager implements IBioclipseManager {
 			"SELECT ?uuid ?count WHERE {" +
 			" ?uuid <http://www.openphacts.org/api#compoundPharmacologyTotalResults> ?count ." +
 			"}";
+	private static final String TARGET_PHARMA_COUNT =
+			"SELECT ?uuid ?count WHERE {" +
+			" ?uuid <http://www.openphacts.org/api#targetPharmacologyTotalResults> ?count ." +
+			"}";
 	private static final String COMPOUND_URI =
 			"SELECT ?compound WHERE {" +
 			" ?compound <http://semanticscience.org/resource/CHEMINF_000396> ?inchi ." +
@@ -108,6 +113,20 @@ public class OpenphactsManager implements IBioclipseManager {
 			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#pChembl> ?pChembl . } " +
 			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#activityComment> ?act_comment . } " +
 			" OPTIONAL { ?assay_uri <http://purl.org/dc/terms/description> ?assay_description. } " +
+			"}";
+	private static final String COMPOUND_PHARMA_BY_TARGET =
+			"SELECT * WHERE {" +
+			" ?item <http://rdf.ebi.ac.uk/terms/chembl#hasMolecule> ?chembl_compound_uri ; " +
+			"   <http://rdf.ebi.ac.uk/terms/chembl#hasAssay> ?assay_uri . " +
+			" ?chembl_compound_uri <http://www.w3.org/2004/02/skos/core#exactMatch> ?rsc_compound_uri . " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#publishedType> ?published_type . } " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#publishedRelation> ?published_relation . } " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#publishedValue> ?published_value . } " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#publishedUnits> ?published_unit . } " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#pChembl> ?pChembl . } " +
+			" OPTIONAL { ?item <http://rdf.ebi.ac.uk/terms/chembl#activityComment> ?act_comment . } " +
+			" OPTIONAL { ?assay_uri <http://purl.org/dc/terms/description> ?assay_description. } " +
+			" OPTIONAL { ?rsc_compound_uri <http://www.openphacts.org/api#smiles> ?smiles . } " +
 			"}";
 	
     private static final String APPID = "5dea5f60";
@@ -357,6 +376,95 @@ public class OpenphactsManager implements IBioclipseManager {
 		} catch (Exception e) {
 			throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
 		}
+	}
+
+	public int getPharmacologyCountForTarget(CWResult target, IProgressMonitor monitor)
+	throws BioclipseException {
+		if (monitor == null) monitor = new NullProgressMonitor();
+
+		IRDFManager rdf = net.bioclipse.rdf.Activator.getDefault().getJavaManager();
+		Targets targets = null;
+		try {
+			targets = Targets.getInstance(getOPSLDAendpoint(), APPID, APPKEY);
+		} catch (MalformedURLException e) {
+			throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+		}
+
+		monitor.beginTask("Retrieving pharmacology about targets from Open PHACTS", 1);
+		try {
+			String countTurtle = targets.pharmacologyCount(target.getURI());
+			System.out.println("countStr: " + countTurtle);
+			IRDFStore countStore = rdf.createInMemoryStore();
+			rdf.importFromString(countStore, countTurtle, "Turtle");
+			IStringMatrix countMatches = rdf.sparql(countStore, TARGET_PHARMA_COUNT);
+			System.out.println("Count matches: " + countMatches);
+			monitor.worked(1);
+			if (countMatches.getRowCount() > 0) {
+				int count = Integer.valueOf(countMatches.get(1, "count"));
+				return count;
+			}
+			return 0;
+		} catch (Exception e) {
+			throw new BioclipseException("Error while contacting Open PHACTS: " + e.getMessage(), e);
+		}
+	}
+
+	public List<IMolecule> getPharmacologyListForTarget(CWResult target, int page, int size, IProgressMonitor monitor)
+	throws BioclipseException {
+		if (monitor == null) monitor = new NullProgressMonitor();
+
+		IRDFManager rdf = net.bioclipse.rdf.Activator.getDefault().getJavaManager();
+		ICDKManager cdk = net.bioclipse.cdk.business.Activator.getDefault().getJavaCDKManager();
+
+		List<IMolecule> mols = new ArrayList<IMolecule>();
+		Targets targets = null;
+		try {
+			targets = Targets.getInstance(getOPSLDAendpoint(), APPID, APPKEY);
+		} catch (MalformedURLException e) {
+			throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+		}
+
+		monitor.beginTask("Retrieving pharmacology about targets from Open PHACTS", 2);
+		try {
+			String listTurtle = targets.pharmacologyList(target.getURI(), page, size);
+			System.out.println("listTurtle: " + listTurtle);
+			IRDFStore pharmaStore = rdf.createInMemoryStore();
+			rdf.importFromString(pharmaStore, listTurtle, "Turtle");
+			IStringMatrix pharmaInfo = rdf.sparql(pharmaStore, COMPOUND_PHARMA_BY_TARGET);
+			System.out.println("pharmaInfo: " + pharmaInfo);
+
+			for (int actCounter=1;actCounter<=pharmaInfo.getRowCount();actCounter++) {
+				Map<String, String> props = new HashMap<String, String>();
+				ICDKMolecule cdkmol=null;
+
+				String smiles = pharmaInfo.get(actCounter, "smiles");
+				if (smiles != null) {
+					cdkmol = cdk.fromSMILES(smiles);
+					String report = onlyIfNotNull("", pharmaInfo.get(actCounter, "published_type"), " ") +
+						onlyIfNotNull("", pharmaInfo.get(actCounter, "published_relation"), " ") +
+						onlyIfNotNull("", pharmaInfo.get(actCounter, "published_value"), " ") +
+						onlyIfNotNull("", pharmaInfo.get(actCounter, "published_unit"), " ") +
+						onlyIfNotNull("(pChembl=", pharmaInfo.get(actCounter, "pChembl"), ") ") +
+						onlyIfNotNull("Comment: ", pharmaInfo.get(actCounter, "act_comment"), "");
+					String propName = (
+						pharmaInfo.get(actCounter, "assay_description") != null ?
+							pharmaInfo.get(actCounter, "assay_description") :
+							"pharmacology"+actCounter
+						);
+					props.put(propName, report);
+					System.out.println("Added compound pharma: " + report);
+
+					for (String key : props.keySet())
+						cdkmol.setProperty(key, props.get(key));
+
+					mols.add(cdkmol);
+				}
+			}
+		} catch (Exception e) {
+			throw new BioclipseException("Error while contacting Open PHACTS: " + e.getMessage(), e);
+		}
+
+		return mols;
 	}
 
 	/**
