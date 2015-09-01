@@ -139,7 +139,7 @@ public class OpenphactsManager implements IBioclipseManager {
 	private String getOPSLDAendpoint(){
 		 IEclipsePreferences preferences = ConfigurationScope.INSTANCE
 				  .getNode(OPENPHACTS_PREFERENCE_NODE);
-		 return preferences.get(OPENPHACTS_ENDPOINT_PREFERENCE,"https://beta.openphacts.org/1.3/");
+		 return preferences.get(OPENPHACTS_ENDPOINT_PREFERENCE,"https://beta.openphacts.org/1.4/");
 	}
 	public void setOPSLDAendpoint(String endpoint){
 		 IEclipsePreferences preferences = ConfigurationScope.INSTANCE
