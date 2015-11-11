@@ -378,7 +378,7 @@ public class OpenphactsManager implements IBioclipseManager {
 		}
 	}
 
-	public int getPharmacologyCountForTarget(CWResult target, IProgressMonitor monitor)
+	public int getPharmacologyCountForTarget(String targetURI, IProgressMonitor monitor)
 	throws BioclipseException {
 		if (monitor == null) monitor = new NullProgressMonitor();
 
@@ -392,7 +392,7 @@ public class OpenphactsManager implements IBioclipseManager {
 
 		monitor.beginTask("Retrieving pharmacology about targets from Open PHACTS", 1);
 		try {
-			String countTurtle = targets.pharmacologyCount(target.getURI());
+			String countTurtle = targets.pharmacologyCount(targetURI);
 			System.out.println("countStr: " + countTurtle);
 			IRDFStore countStore = rdf.createInMemoryStore();
 			rdf.importFromString(countStore, countTurtle, "Turtle");
@@ -409,7 +409,7 @@ public class OpenphactsManager implements IBioclipseManager {
 		}
 	}
 
-	public List<IMolecule> getPharmacologyListForTarget(CWResult target, int page, int size, IProgressMonitor monitor)
+	public List<IMolecule> getPharmacologyListForTarget(String targetURI, int page, int size, IProgressMonitor monitor)
 	throws BioclipseException {
 		if (monitor == null) monitor = new NullProgressMonitor();
 
@@ -426,7 +426,7 @@ public class OpenphactsManager implements IBioclipseManager {
 
 		monitor.beginTask("Retrieving pharmacology about targets from Open PHACTS", 2);
 		try {
-			String listTurtle = targets.pharmacologyList(target.getURI(), page, size);
+			String listTurtle = targets.pharmacologyList(targetURI, page, size);
 			System.out.println("listTurtle: " + listTurtle);
 			IRDFStore pharmaStore = rdf.createInMemoryStore();
 			rdf.importFromString(pharmaStore, listTurtle, "Turtle");

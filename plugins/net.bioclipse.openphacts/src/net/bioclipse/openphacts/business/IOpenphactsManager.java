@@ -62,17 +62,17 @@ public interface IOpenphactsManager extends IBioclipseManager {
 			throws BioclipseException;
 
 	@PublishedMethod(
-			methodSummary = "Get the number of activities against the given proteins in Open PHACTS",
-			params = "CWResult target"
+		methodSummary = "Get the number of activities against the given proteins in Open PHACTS",
+		params = "String targetURI"
 	)
-	public int getPharmacologyCountForTarget(CWResult target)
+	public int getPharmacologyCountForTarget(String targetURI)
 		throws BioclipseException;
 
 	@PublishedMethod(
-			methodSummary = "Get a certain number of activities against the given proteins in Open PHACTS.",
-			params = "CWResult target"
+		methodSummary = "Get a certain number of activities against the given proteins in Open PHACTS.",
+		params = "String targetURI"
 	)
-	public List<IMolecule> getPharmacologyListForTarget(CWResult target, int page, int size)
+	public List<IMolecule> getPharmacologyListForTarget(String targetURI, int page, int size)
 		throws BioclipseException;
 
 	@PublishedMethod(
