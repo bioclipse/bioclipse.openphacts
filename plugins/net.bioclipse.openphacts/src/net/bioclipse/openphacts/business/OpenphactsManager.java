@@ -16,19 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.bioclipse.cdk.business.ICDKManager;
-import net.bioclipse.cdk.domain.ICDKMolecule;
-import net.bioclipse.core.business.BioclipseException;
-import net.bioclipse.core.domain.IMolecule;
-import net.bioclipse.core.domain.IStringMatrix;
-import net.bioclipse.inchi.InChI;
-import net.bioclipse.inchi.business.IInChIManager;
-import net.bioclipse.jobs.IReturner;
-import net.bioclipse.managers.business.IBioclipseManager;
-import net.bioclipse.openphacts.model.CWResult;
-import net.bioclipse.rdf.business.IRDFManager;
-import net.bioclipse.rdf.business.IRDFStore;
-
 import org.apache.log4j.Logger;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.NullProgressMonitor;
@@ -41,6 +28,19 @@ import com.github.egonw.ops4j.Concepts;
 import com.github.egonw.ops4j.Mapping;
 import com.github.egonw.ops4j.Structures;
 import com.github.egonw.ops4j.Targets;
+
+import net.bioclipse.cdk.business.ICDKManager;
+import net.bioclipse.cdk.domain.ICDKMolecule;
+import net.bioclipse.core.business.BioclipseException;
+import net.bioclipse.core.domain.IMolecule;
+import net.bioclipse.core.domain.IStringMatrix;
+import net.bioclipse.inchi.InChI;
+import net.bioclipse.inchi.business.IInChIManager;
+import net.bioclipse.jobs.IReturner;
+import net.bioclipse.managers.business.IBioclipseManager;
+import net.bioclipse.openphacts.model.CWResult;
+import net.bioclipse.rdf.business.IRDFManager;
+import net.bioclipse.rdf.business.IRDFStore;
 
 /**
  * A manager to query the Open PHACTS infrastructure.
@@ -427,6 +427,64 @@ public class OpenphactsManager implements IBioclipseManager {
 		monitor.beginTask("Retrieving pharmacology about targets from Open PHACTS", 2);
 		try {
 			String listTurtle = targets.pharmacologyList(targetURI, page, size);
+			System.out.println("listTurtle: " + listTurtle);
+			IRDFStore pharmaStore = rdf.createInMemoryStore();
+			rdf.importFromString(pharmaStore, listTurtle, "Turtle");
+			IStringMatrix pharmaInfo = rdf.sparql(pharmaStore, COMPOUND_PHARMA_BY_TARGET);
+			System.out.println("pharmaInfo: " + pharmaInfo);
+
+			for (int actCounter=1;actCounter<=pharmaInfo.getRowCount();actCounter++) {
+				Map<String, String> props = new HashMap<String, String>();
+				ICDKMolecule cdkmol=null;
+
+				String smiles = pharmaInfo.get(actCounter, "smiles");
+				if (smiles != null) {
+					cdkmol = cdk.fromSMILES(smiles);
+					String report = onlyIfNotNull("", pharmaInfo.get(actCounter, "published_type"), " ") +
+						onlyIfNotNull("", pharmaInfo.get(actCounter, "published_relation"), " ") +
+						onlyIfNotNull("", pharmaInfo.get(actCounter, "published_value"), " ") +
+						onlyIfNotNull("", pharmaInfo.get(actCounter, "published_unit"), " ") +
+						onlyIfNotNull("(pChembl=", pharmaInfo.get(actCounter, "pChembl"), ") ") +
+						onlyIfNotNull("Comment: ", pharmaInfo.get(actCounter, "act_comment"), "");
+					String propName = (
+						pharmaInfo.get(actCounter, "assay_description") != null ?
+							pharmaInfo.get(actCounter, "assay_description") :
+							"pharmacology"+actCounter
+						);
+					props.put(propName, report);
+					System.out.println("Added compound pharma: " + report);
+
+					for (String key : props.keySet())
+						cdkmol.setProperty(key, props.get(key));
+
+					mols.add(cdkmol);
+				}
+			}
+		} catch (Exception e) {
+			throw new BioclipseException("Error while contacting Open PHACTS: " + e.getMessage(), e);
+		}
+
+		return mols;
+	}
+
+	public List<IMolecule> getAllPharmacologyForTarget(String targetURI, IProgressMonitor monitor)
+	throws BioclipseException {
+		if (monitor == null) monitor = new NullProgressMonitor();
+
+		IRDFManager rdf = net.bioclipse.rdf.Activator.getDefault().getJavaManager();
+		ICDKManager cdk = net.bioclipse.cdk.business.Activator.getDefault().getJavaCDKManager();
+
+		List<IMolecule> mols = new ArrayList<IMolecule>();
+		Targets targets = null;
+		try {
+			targets = Targets.getInstance(getOPSLDAendpoint(), APPID, APPKEY);
+		} catch (MalformedURLException e) {
+			throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
+		}
+
+		monitor.beginTask("Retrieving pharmacology about targets from Open PHACTS", 2);
+		try {
+			String listTurtle = targets.pharmacologyAll(targetURI);
 			System.out.println("listTurtle: " + listTurtle);
 			IRDFStore pharmaStore = rdf.createInMemoryStore();
 			rdf.importFromString(pharmaStore, listTurtle, "Turtle");
