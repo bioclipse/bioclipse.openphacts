@@ -3,7 +3,7 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6"/>
 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="lib" path="lib/ops4j-0.0.1-SNAPSHOT.jar"/>
+	<classpathentry kind="lib" path="lib/ops4j-0.0.1-SNAPSHOT.jar" sourcepath="/ops4j/src"/>
 	<classpathentry kind="lib" path="extlib/commons-io-2.4.jar"/>
 	<classpathentry kind="lib" path="extlib/httpclient-4.2.5.jar"/>
 	<classpathentry kind="lib" path="extlib/httpcore-4.2.4.jar"/>

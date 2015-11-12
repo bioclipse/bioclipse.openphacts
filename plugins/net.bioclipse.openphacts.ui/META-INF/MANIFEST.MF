@@ -8,7 +8,8 @@ Bundle-Vendor: bioclipse.net
 Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
  net.bioclipse.openphacts;bundle-version="1.0.0",
- net.bioclipse.core;bundle-version="2.5.0"
+ net.bioclipse.core;bundle-version="2.5.0",
+ net.bioclipse.ui.search;bundle-version="1.0.0"
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Bundle-ActivationPolicy: lazy
 Import-Package: org.apache.log4j
