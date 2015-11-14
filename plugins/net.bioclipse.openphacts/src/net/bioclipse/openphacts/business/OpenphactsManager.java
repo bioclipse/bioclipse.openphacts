@@ -484,7 +484,7 @@ public class OpenphactsManager implements IBioclipseManager {
 
 		monitor.beginTask("Retrieving pharmacology about targets from Open PHACTS", 2);
 		try {
-			String listTurtle = targets.pharmacologyAll(targetURI);
+			String listTurtle = targets.allPharmacology(targetURI);
 			System.out.println("listTurtle: " + listTurtle);
 			IRDFStore pharmaStore = rdf.createInMemoryStore();
 			rdf.importFromString(pharmaStore, listTurtle, "Turtle");
