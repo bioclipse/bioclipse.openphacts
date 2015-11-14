@@ -38,7 +38,7 @@ import net.bioclipse.inchi.InChI;
 import net.bioclipse.inchi.business.IInChIManager;
 import net.bioclipse.jobs.IReturner;
 import net.bioclipse.managers.business.IBioclipseManager;
-import net.bioclipse.openphacts.model.CWResult;
+import net.bioclipse.openphacts.model.Resource;
 import net.bioclipse.rdf.business.IRDFManager;
 import net.bioclipse.rdf.business.IRDFStore;
 
@@ -154,7 +154,7 @@ public class OpenphactsManager implements IBioclipseManager {
 	 * @return list of CWresults (name + cwid)
 	 * @throws BioclipseException 
 	 */
-	public List<CWResult> lookUpProteins(String query, IProgressMonitor monitor) throws BioclipseException {
+	public List<Resource> lookUpProteins(String query, IProgressMonitor monitor) throws BioclipseException {
 		return lookUpCW(query, "protein", monitor);
 	}		
 
@@ -165,7 +165,7 @@ public class OpenphactsManager implements IBioclipseManager {
 	 * @return list of CWresults (name + cwid)
 	 * @throws BioclipseException 
 	 */
-	public List<CWResult> lookUpCompounds(String query, IProgressMonitor monitor)
+	public List<Resource> lookUpCompounds(String query, IProgressMonitor monitor)
 			throws BioclipseException {
 		return lookUpCW(query, "compound", monitor);
 	}
@@ -192,7 +192,7 @@ public class OpenphactsManager implements IBioclipseManager {
 	/**
 	 * Private method for CW access
 	 */
-	private List<CWResult> lookUpCW(String name, String type, IProgressMonitor monitor)
+	private List<Resource> lookUpCW(String name, String type, IProgressMonitor monitor)
 			throws BioclipseException {
 		
 		if (name==null || name.length()<3)
@@ -224,13 +224,13 @@ public class OpenphactsManager implements IBioclipseManager {
 		}
 
 		//Parse the results
-		List<CWResult> res = new ArrayList<CWResult>();
+		List<Resource> res = new ArrayList<Resource>();
 		try {
 			IStringMatrix matches = rdf.sparql(store, CONCEPT_SEARCH_RESULTS);
 			for (int i=1; i<=matches.getRowCount(); i++) {
 				String uuid = matches.get(i, "uuid");
 				uuid = uuid.substring(uuid.lastIndexOf('/')+1);
-				CWResult result = new CWResult(matches.get(i, "match"), uuid);
+				Resource result = new Resource(matches.get(i, "match"), uuid);
 				res.add(result);
 			}
 		} catch (Exception e) {
@@ -247,7 +247,7 @@ public class OpenphactsManager implements IBioclipseManager {
 	 * @param monitor
 	 * @return
 	 */
-	public List<String> getProteinsInfo(List<CWResult> collection, IProgressMonitor monitor)
+	public List<String> getProteinsInfo(List<Resource> collection, IProgressMonitor monitor)
 	throws BioclipseException {
 
 		monitor.beginTask("Retrieving information about protein from Open PHACTS", collection.size());
@@ -262,7 +262,7 @@ public class OpenphactsManager implements IBioclipseManager {
 			throw new BioclipseException("Something went wrong: " + e.getMessage(), e);
 		}
 		int i=0;
-		for (CWResult protein : collection){
+		for (Resource protein : collection){
 			i++;
 			monitor.subTask("Protein (" + i + "/" + 
 					collection.size() + "): " + protein.getName());
@@ -270,7 +270,7 @@ public class OpenphactsManager implements IBioclipseManager {
 			if (monitor.isCanceled())
 				return null;
 
-			String cwikiURI = "http://www.conceptwiki.org/concept/" +protein.getCwid();
+			String cwikiURI = protein.getURI();
 			
 			//Query CW based on type
 			IRDFStore store = rdf.createInMemoryStore();
@@ -533,7 +533,7 @@ public class OpenphactsManager implements IBioclipseManager {
 	 * @return List of molecules with properties set
 	 * @throws BioclipseException
 	 */
-	public List<IMolecule> getCompoundsInfo(List<CWResult> collection, IProgressMonitor monitor) 
+	public List<IMolecule> getCompoundsInfo(List<Resource> collection, IProgressMonitor monitor) 
 			throws BioclipseException{
 
 		IRDFManager rdf = net.bioclipse.rdf.Activator.getDefault().getJavaManager();
@@ -550,10 +550,10 @@ public class OpenphactsManager implements IBioclipseManager {
 
 		int i=0;
 		monitor.beginTask("Retrieving information about compounds from Open PHACTS", collection.size()*2);
-		for (CWResult compound : collection){
+		for (Resource compound : collection){
 			i++;
 			//Concatenate into URL and look up in OPS
-			String cwikiCompound="http://www.conceptwiki.org/concept/" + compound.getCwid();
+			String cwikiCompound = compound.getURI();
 
 			//Look up compound info
 			//======================

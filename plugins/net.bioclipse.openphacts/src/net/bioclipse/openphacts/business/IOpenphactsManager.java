@@ -17,7 +17,7 @@ import net.bioclipse.core.PublishedMethod;
 import net.bioclipse.core.business.BioclipseException;
 import net.bioclipse.core.domain.IMolecule;
 import net.bioclipse.managers.business.IBioclipseManager;
-import net.bioclipse.openphacts.model.CWResult;
+import net.bioclipse.openphacts.model.Resource;
 
 /**
  * 
@@ -37,13 +37,13 @@ public interface IOpenphactsManager extends IBioclipseManager {
 	@PublishedMethod(
 			methodSummary = "Look up proteins in ConceptWiki by name",
 			params = "String name")
-	public List<CWResult> lookUpProteins(String name)
+	public List<Resource> lookUpProteins(String name)
 			throws BioclipseException;
 	
 	@PublishedMethod(
 			methodSummary = "Look up compounds in ConceptWiki by name",
 			params = "String name")
-	public List<CWResult> lookUpCompounds(String name)
+	public List<Resource> lookUpCompounds(String name)
 			throws BioclipseException;
 
 	@PublishedMethod(
@@ -51,14 +51,14 @@ public interface IOpenphactsManager extends IBioclipseManager {
 					", including pharmacological data",
 			params = "List<CWResult> collection"
 	)
-	public List<IMolecule> getCompoundsInfo(List<CWResult> collection) 
+	public List<IMolecule> getCompoundsInfo(List<Resource> collection) 
 			throws BioclipseException;
 	
 	@PublishedMethod(
 			methodSummary = "Get info for proteins from Open PHACTS",
 			params = "List<CWResult> collection"
 	)
-	public List<String> getProteinsInfo(List<CWResult> collection)
+	public List<String> getProteinsInfo(List<Resource> collection)
 			throws BioclipseException;
 
 	@PublishedMethod(

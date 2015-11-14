@@ -5,7 +5,7 @@ import java.util.List;
 import net.bioclipse.core.BioclipseStore;
 import net.bioclipse.core.business.BioclipseException;
 import net.bioclipse.openphacts.business.IOpenphactsManager;
-import net.bioclipse.openphacts.model.CWResult;
+import net.bioclipse.openphacts.model.Resource;
 import net.bioclipse.openphacts.ui.Activator;
 
 import org.eclipse.core.runtime.Platform;
@@ -110,7 +110,7 @@ public class SearchDialog extends TitleAreaDialog {
 			
 			@Override
 			public void widgetSelected(SelectionEvent e) {
-				List<CWResult> res;
+				List<Resource> res;
 				try {
 					res = openphacts.lookUpCompounds(searchText.getText());
 					
@@ -136,7 +136,7 @@ public class SearchDialog extends TitleAreaDialog {
 	
 	@Override
 	protected void okPressed() {
-		List<CWResult> res;
+		List<Resource> res;
 		try {
 			res = openphacts.lookUpCompounds(searchText.getText());
 			
