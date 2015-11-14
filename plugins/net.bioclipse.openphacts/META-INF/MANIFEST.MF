@@ -27,4 +27,4 @@ Bundle-ClassPath: .,
  extlib/httpclient-4.2.5.jar,
  extlib/httpcore-4.2.4.jar,
  extlib/commons-logging-1.1.3.jar,
- lib/ops4j-0.0.1.jar
+ lib/ops4j-0.0.2-SNAPSHOT.jar

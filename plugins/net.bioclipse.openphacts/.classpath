@@ -7,6 +7,6 @@
 	<classpathentry kind="lib" path="extlib/httpclient-4.2.5.jar"/>
 	<classpathentry kind="lib" path="extlib/httpcore-4.2.4.jar"/>
 	<classpathentry kind="lib" path="extlib/commons-logging-1.1.3.jar"/>
-	<classpathentry kind="lib" path="lib/ops4j-0.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/ops4j-0.0.2-SNAPSHOT.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
