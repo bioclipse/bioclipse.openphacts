@@ -23,8 +23,8 @@ Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Import-Package: org.apache.log4j
 Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .,
- lib/ops4j-0.0.1-SNAPSHOT.jar,
  extlib/commons-io-2.4.jar,
  extlib/httpclient-4.2.5.jar,
  extlib/httpcore-4.2.4.jar,
- extlib/commons-logging-1.1.3.jar
+ extlib/commons-logging-1.1.3.jar,
+ lib/ops4j-0.0.1.jar
