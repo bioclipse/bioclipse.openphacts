@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
       id="net.bioclipse.openphacts_feature"
-      label="Openphacts_feature"
-      version="1.0.0.qualifier"
+      label="Open PHACTS Feature"
+      version="2.6.2.qualifier"
       provider-name="bioclipse.net">
 
    <description>
@@ -10,7 +10,7 @@
    </description>
 
    <copyright>
-      (C) 2012 The Bioclipse Project contributors.
+      (C) 2012-2015 The Bioclipse Project contributors.
    </copyright>
 
    <license url="http://www.eclipse.org/org/documents/epl-v10.php">
