@@ -2,13 +2,11 @@ package net.bioclipse.openphacts.ui.dialogs;
 
 import java.util.List;
 
-import net.bioclipse.core.BioclipseStore;
 import net.bioclipse.core.business.BioclipseException;
 import net.bioclipse.openphacts.business.IOpenphactsManager;
 import net.bioclipse.openphacts.model.Resource;
 import net.bioclipse.openphacts.ui.Activator;
 
-import org.eclipse.core.runtime.Platform;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.ColumnLabelProvider;
@@ -30,7 +28,6 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
-import org.eclipse.ui.PlatformUI;
 
 /**
  * 
@@ -40,8 +37,7 @@ import org.eclipse.ui.PlatformUI;
 public class SearchDialog extends TitleAreaDialog {
 
 	private Text searchText;
-	private final IOpenphactsManager openphacts = 
-			net.bioclipse.openphacts.Activator.getDefault().getJavaOpenphactsManager();
+	private TableViewer resultViewer;
 
 	public SearchDialog(Shell parentShell) {
 		super(parentShell);
@@ -54,7 +50,7 @@ public class SearchDialog extends TitleAreaDialog {
 	
 	@Override
 	protected Point getInitialSize() {
-		return new Point(506, 210);
+		return new Point(500, 600);
 	}
 
 	@Override
@@ -65,7 +61,8 @@ public class SearchDialog extends TitleAreaDialog {
 		setTitleImage(Activator.imageDescriptorFromPlugin(
 				Activator.PLUGIN_ID, "icons/OPS_logo_small.jpg").createImage());
 		
-		
+		final IOpenphactsManager openphacts = 
+				net.bioclipse.openphacts.Activator.getDefault().getJavaOpenphactsManager();
 		
 		// create the top level composite for the dialog area
 		Composite compositeTOP = new Composite(parent, SWT.RESIZE);
@@ -93,6 +90,8 @@ public class SearchDialog extends TitleAreaDialog {
 		//Label is fixed minimum size
 		Label label1 = new Label(composite, SWT.NONE);
 		label1.setText("Query:");
+		GridData gd2 = new GridData();
+		label1.setLayoutData(gd2);
 
 		
 		// The text fields will grow with the size of the dialog
@@ -125,8 +124,23 @@ public class SearchDialog extends TitleAreaDialog {
 			}
 		});
 
+		
+		//Viewer
+		//======
+		resultViewer = new TableViewer(composite);
+		GridData gridData2 = new GridData(GridData.FILL_BOTH);
+		gridData2.horizontalSpan=3;
+		resultViewer.getTable().setLayoutData(gridData2);
+		resultViewer.setContentProvider(new ArrayContentProvider());
+
         TableLayout tableLayout = new TableLayout();
+        resultViewer.getTable().setLayout(tableLayout);
+
+        //Add columns
+        TableViewerColumn molCol=new TableViewerColumn(resultViewer, SWT.NONE);
+        molCol.getColumn().setText("Name");
         tableLayout.addColumnData(new ColumnPixelData(250));
+        molCol.setLabelProvider(new ColumnLabelProvider());
         
 		return searchText;
 
@@ -136,18 +150,18 @@ public class SearchDialog extends TitleAreaDialog {
 	
 	@Override
 	protected void okPressed() {
-		List<Resource> res;
-		try {
-			res = openphacts.lookUpCompounds(searchText.getText());
-			
-			net.bioclipse.ui.search.BioclipseSearch.INSTANCE.addSearch(searchText.getText(), res.size());
-			
-	
-			System.out.println(res);
-		} catch (BioclipseException e1) {
-			e1.printStackTrace();
-		}
+		validate();
+		
+		//Do search
 		super.okPressed();
 	}
 	
+	
+	private void validate(){
+		setErrorMessage(null);
+		if (resultViewer.getSelection()==null)
+			setErrorMessage("Nothing selected in results viewer");
+		getButtonBar().update();
+	}
+
 }
